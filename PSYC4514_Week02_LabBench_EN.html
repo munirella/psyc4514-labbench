@@ -228,7 +228,7 @@
 <section class="tab" id="loop">
   <h2>What the loop actually does</h2>
   <p class="lede">Your conditions file has 10 rows. The loop repeats it. These four settings
-  decide the order you get — and one of them quietly breaks the balance you built into the file.</p>
+  decide the order you get — and one of them no longer spreads the balance you built into the file evenly across the session.</p>
 
   <div class="modes">
     <button data-mode="sequential" aria-pressed="true">sequential</button>
@@ -245,17 +245,18 @@
   <div class="loopbars" id="loopbars"></div>
   <p class="note" style="margin-top:9px">Each bar is one trial. Its height is a value taken from
   that row of the conditions file — stimulus duration, difficulty, whatever your design varies.
-  Dashed lines separate repetitions.</p>
+  Dashed lines separate repetitions; in full random there is no real repetition boundary, so they mark every ten trials.</p>
 
-  <h3 style="margin-top:26px">How many times each row was used</h3>
+  <h3 style="margin-top:26px">How many times each row was used <span class="note" style="font-weight:400">(in brackets: per repetition, or per ten trials)</span></h3>
   <div class="counts" id="counts"></div>
   <div class="verdict" id="loopVerdict"></div>
 
   <div class="callout">
-    <b>Sampling without replacement.</b> Think of the rows as chess pieces in a box: you shake it
-    and draw them out one at a time, and a piece you have drawn does not go back in. That is what
-    <em>random</em> does — every row appears exactly once per repetition, so any balancing you built
-    into the file survives. <em>Full random</em> puts the pieces back, and the balance is gone.
+    <b>Both settings show every row the same number of times overall; the difference is where the balance holds.</b>
+    Think of the rows as pieces in a bag. <em>random</em> puts one piece per row in the bag for each repetition,
+    shakes it and draws them all: every row comes up exactly once per repetition, so the balance holds in every part of the task.
+    <em>Full random</em> puts the pieces for all repetitions into one bag and shakes it once: the totals are still equal,
+    but one condition can pile up at the start or the end. Use <em>random</em> for projects.
   </div>
 </section>
 
@@ -449,15 +450,31 @@ const VALUES = Array.from({ length: ROWS }, (_, i) => 22 + i * 8); // a clean ra
 let mode = 'sequential';
 const fixedOrder = shuffle([...Array(ROWS).keys()]);
 
-function buildOrder(reps) {
-  const out = [];
-  for (let r = 0; r < reps; r++) {
-    if (r > 0) out.push(null);                       // separator
-    if (mode === 'sequential') out.push(...[...Array(ROWS).keys()]);
-    else if (mode === 'fixed') out.push(...fixedOrder);
-    else if (mode === 'random') out.push(...shuffle([...Array(ROWS).keys()]));
-    else for (let i = 0; i < ROWS; i++) out.push(Math.floor(Math.random() * ROWS));
+const L = {
+  row: 'row',
+  txt: {
+    sequential: (r) => 'The file is stepped through top to bottom, the same way every repetition. Every row is used once per repetition, ' + r + ' time' + (r > 1 ? 's' : '') + ' in total. Use this when the order is part of the design — a digit span that gets longer, for instance.',
+    fixed: (r) => 'One scrambled order, then the same scrambled order again. It looks random to the participant, but every participant gets exactly the same sequence. In PsychoPy this is not a separate setting: shuffle the conditions file once and run the loop as sequential.',
+    random: (r) => 'Reshuffled on every repetition: each row comes up exactly once per repetition (every number in brackets is 1). The balance is the same at the start, middle and end of the task. This is the setting we recommend for projects.',
+    full: (r, k) => r === 1
+      ? 'With a single repetition, full random and random are the same thing. Raise the repetitions to see the difference.'
+      : 'All the trials from every repetition go into one bag and are shuffled once. Every row still ran exactly <b>' + r + '</b> times in total — the overall balance holds. But look at the blocks of ten: <b>' + k + '</b> rows came up more than once in some blocks and not at all in others. The start, middle and end of the task no longer contain the same mix of conditions, so practice and fatigue can partly line up with them.'
   }
+};
+function buildOrder(reps) {
+  let seq = [];
+  if (mode === 'full') {
+    for (let r = 0; r < reps; r++) for (let i = 0; i < ROWS; i++) seq.push(i);
+    shuffle(seq);                                   // one bag, shuffled once (PsychoPy fullRandom)
+  } else {
+    for (let r = 0; r < reps; r++) {
+      if (mode === 'sequential') seq.push(...[...Array(ROWS).keys()]);
+      else if (mode === 'fixed') seq.push(...fixedOrder);
+      else seq.push(...shuffle([...Array(ROWS).keys()]));
+    }
+  }
+  const out = [];
+  seq.forEach((v, k) => { if (k > 0 && k % ROWS === 0) out.push(null); out.push(v); });
   return out;
 }
 function drawLoop() {
@@ -466,31 +483,30 @@ function drawLoop() {
   const wrapEl = $('loopbars');
   wrapEl.innerHTML = '';
   const counts = new Array(ROWS).fill(0);
+  const per = Array.from({ length: ROWS }, () => new Array(reps).fill(0));
+  let block = 0;
   order.forEach(i => {
     const d = document.createElement('div');
-    if (i === null) { d.className = 'lb sep'; wrapEl.appendChild(d); return; }
-    counts[i]++;
+    if (i === null) { block++; d.className = 'lb sep'; wrapEl.appendChild(d); return; }
+    counts[i]++; per[i][block]++;
     d.className = 'lb';
     d.style.height = (VALUES[i] / VALUES[ROWS - 1] * 100) + '%';
-    d.title = 'row ' + (i + 1);
+    d.title = L.row + ' ' + (i + 1);
     wrapEl.appendChild(d);
   });
   const cc = $('counts');
   cc.innerHTML = '';
+  let unevenRows = 0;
   counts.forEach((c, i) => {
+    const bad = per[i].some(x => x !== 1);
+    if (bad) unevenRows++;
     const s = document.createElement('div');
-    s.className = 'cchip' + (c === reps ? '' : ' off');
-    s.innerHTML = 'row ' + (i + 1) + ' · <b>' + c + '×</b>';
+    s.className = 'cchip' + (bad ? ' off' : '');
+    s.innerHTML = L.row + ' ' + (i + 1) + ' · <b>' + c + '×</b>' + (reps > 1 ? ' (' + per[i].join('·') + ')' : '');
     cc.appendChild(s);
   });
-  const uneven = counts.some(c => c !== reps);
-  const txt = {
-    sequential: 'The file is stepped through top to bottom, the same way every repetition. Every row is used exactly ' + reps + ' time' + (reps > 1 ? 's' : '') + '. Use this when the order is part of the design — a digit span that gets longer, for instance.',
-    fixed: 'One scrambled order, then the same scrambled order again. It looks random to the participant, but every participant gets exactly the same sequence — which is what you want when the order itself has to be held constant.',
-    random: 'Reshuffled on every repetition, but still sampled without replacement: each row comes up exactly once per repetition. Whatever you balanced in the file stays balanced.',
-    full: 'Drawn with replacement from the whole file. Look at the counts — some rows ran ' + Math.max(...counts) + ' times, others ' + Math.min(...counts) + '. The balance you built into the conditions file is gone.'
-  }[mode];
-  $('loopVerdict').innerHTML = txt + (uneven && mode !== 'full' ? '' : '');
+  let txt = L.txt[mode](reps, unevenRows);
+  $('loopVerdict').innerHTML = txt;
 }
 document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
   mode = b.dataset.mode;
