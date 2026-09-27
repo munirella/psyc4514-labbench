@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 2 Lab Bench — Building Cognitive Experiments</title>
+<style>
+  :root{
+    --deep:#065A82; --teal:#1C7293; --mid:#21295C; --ink:#16203D;
+    --amber:#D98A1F; --amber-soft:#FDF3E3;
+    --grey:#5B6478; --line:#D5DCE6; --panel:#EEF3F8; --page:#FFFFFF;
+    --field:#141414;
+    --red:#E23B3B; --green:#2FA84F; --blue:#3B72E2; --yellow:#E3B21A;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,Cambria,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--page);
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 72px}
+
+  header.top{border-bottom:1px solid var(--line);background:var(--page);
+    position:sticky;top:0;z-index:20}
+  .top-inner{max-width:1080px;margin:0 auto;padding:18px 24px 0;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between}
+  h1{font-family:var(--serif);font-size:22px;font-weight:700;margin:0;letter-spacing:-.2px}
+  .course{font-size:13px;color:var(--grey);font-variant-numeric:tabular-nums}
+  nav{max-width:1080px;margin:0 auto;padding:14px 24px 0;display:flex;gap:2px;flex-wrap:wrap}
+  nav button{font:inherit;font-size:14px;border:1px solid transparent;border-bottom:none;
+    background:none;color:var(--grey);padding:9px 16px;cursor:pointer;
+    border-radius:6px 6px 0 0;margin-bottom:-1px}
+  nav button:hover{color:var(--ink);background:var(--panel)}
+  nav button[aria-selected="true"]{background:var(--page);border-color:var(--line);
+    color:var(--ink);font-weight:600}
+  nav button:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+
+  section.tab{display:none;padding-top:32px}
+  section.tab.on{display:block}
+  h2{font-family:var(--serif);font-size:26px;margin:0 0 6px;font-weight:700}
+  .lede{color:var(--grey);max-width:66ch;margin:0 0 28px;font-size:15px}
+  h3{font-size:15px;margin:0 0 10px;font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+  .note{font-size:13px;color:var(--grey)}
+  .btn{font:inherit;font-size:14px;font-weight:600;border-radius:6px;cursor:pointer;
+    padding:10px 18px;border:1px solid var(--deep);background:var(--deep);color:#fff}
+  .btn:hover{background:#054d70}
+  .btn.ghost{background:transparent;color:var(--deep)}
+  .btn.ghost:hover{background:var(--panel)}
+  .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .btn.sm{padding:7px 13px;font-size:13px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .ctrl{margin-bottom:16px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .ctrl input[type=range]{width:100%;accent-color:var(--teal)}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{font-weight:600;color:var(--grey);font-size:12px}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .callout{background:var(--amber-soft);border:1px solid #F0D6A8;border-radius:8px;
+    padding:16px 18px;font-size:14px;color:#6B4708;margin-top:26px}
+  .callout b{color:#8A5A10}
+  .verdict{margin-top:16px;font-size:14px}
+  .verdict b{font-family:var(--mono)}
+  .split{display:grid;grid-template-columns:290px 1fr;gap:24px;align-items:start}
+  @media(max-width:860px){.split{grid-template-columns:1fr}}
+
+  /* ---------- module 1: counterbalancing ---------- */
+  .cells{display:grid;gap:8px;margin-top:4px}
+  .cell{border:1px solid var(--line);border-radius:7px;padding:10px 12px;background:var(--page)}
+  .cell .lab{font-size:12px;color:var(--grey);margin-bottom:6px}
+  .cell .cnt{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--deep);
+    line-height:1.1;font-variant-numeric:tabular-nums}
+  .cell .track{height:6px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+  .cell .track i{display:block;height:100%;background:var(--teal);width:0;transition:width .35s}
+  .cell.hot{border-color:#F0D6A8;background:var(--amber-soft)}
+  .cell.hot .cnt{color:#8A5A10}
+  .cell.hot .track i{background:var(--amber)}
+  .scoreline{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}
+  @media(max-width:720px){.scoreline{grid-template-columns:1fr}}
+  .stat{border:1px solid var(--line);border-radius:8px;padding:16px}
+  .stat .v{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--deep);
+    font-variant-numeric:tabular-nums;line-height:1.2}
+  .stat .k{font-size:13px;color:var(--grey);margin-top:2px}
+  .stat.hero{background:var(--mid);border-color:var(--mid)}
+  .stat.hero .v{color:var(--amber)}
+  .stat.hero .k{color:#B8C6E0}
+
+  /* ---------- module 2: loop ordering ---------- */
+  .loopbars{display:flex;align-items:flex-end;gap:2px;height:170px;
+    border-bottom:1px solid var(--line);padding:0 2px;overflow-x:auto}
+  .lb{flex:1 0 8px;min-width:6px;background:var(--teal);border-radius:2px 2px 0 0;
+    transition:height .35s}
+  .lb.sep{background:none;border-left:1px dashed var(--line);flex:0 0 1px;min-width:1px;height:100%!important}
+  .replabs{display:flex;gap:2px;padding-top:8px;font-size:11px;color:var(--grey)}
+  .counts{display:flex;gap:6px;flex-wrap:wrap;margin-top:22px}
+  .cchip{border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;
+    font-family:var(--mono);background:var(--page)}
+  .cchip b{color:var(--deep)}
+  .cchip.off{border-color:#F0D6A8;background:var(--amber-soft)}
+  .cchip.off b{color:#8A5A10}
+  .modes{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .modes button{font:inherit;font-size:13.5px;padding:8px 14px;border-radius:6px;
+    border:1px solid var(--line);background:var(--page);color:var(--grey);cursor:pointer}
+  .modes button:hover{border-color:var(--teal);color:var(--ink)}
+  .modes button[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);
+    color:#fff;font-weight:600}
+
+  /* ---------- module 3: confound hunter ---------- */
+  .qcard{border:1px solid var(--line);border-radius:8px;padding:22px}
+  .qmeta{font-size:12px;color:var(--grey);margin-bottom:10px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .qtext{font-size:16px;margin:0 0 18px;max-width:70ch}
+  .qtext em{color:var(--deep);font-style:normal;font-weight:600}
+  .opts{display:flex;flex-direction:column;gap:9px}
+  .opt{font:inherit;font-size:14px;text-align:left;padding:12px 14px;border-radius:7px;
+    border:1px solid var(--line);background:var(--page);color:var(--ink);cursor:pointer}
+  .opt:hover:not([disabled]){border-color:var(--teal);background:var(--panel)}
+  .opt:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .opt[disabled]{cursor:default}
+  .opt.right{border-color:var(--green);background:#EFF9F1}
+  .opt.wrong{border-color:var(--red);background:#FDF0F0}
+  .fb{margin-top:16px;font-size:14px;padding:14px 16px;border-radius:7px;
+    background:var(--panel);border:1px solid var(--line);display:none}
+  .fb.on{display:block}
+  .fb b{color:var(--ink)}
+  /* ---------- module 4: budget ---------- */
+  .fac{display:grid;grid-template-columns:1fr 92px;gap:8px;align-items:center;margin-bottom:9px}
+  .fac input[type=text]{font:inherit;font-size:13.5px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:6px;background:var(--page);color:var(--ink);width:100%}
+  .fac select{width:100%}
+  .fac.off input,.fac.off select{opacity:.4}
+  .faclab{font-size:11px;color:var(--grey);margin-bottom:4px;display:flex;justify-content:space-between}
+  .gauges{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+  @media(max-width:720px){.gauges{grid-template-columns:1fr}}
+  .gauge{border:1px solid var(--line);border-radius:8px;padding:16px}
+  .gauge.ok{border-color:#BBDCC4;background:#F2FAF4}
+  .gauge.bad{border-color:#F0D6A8;background:var(--amber-soft)}
+  .gauge .v{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.15;
+    font-variant-numeric:tabular-nums;color:var(--deep)}
+  .gauge.ok .v{color:#1F7A3D}
+  .gauge.bad .v{color:#8A5A10}
+  .gauge .k{font-size:13px;color:var(--grey);margin-top:2px}
+  .gauge .t{font-size:12px;margin-top:9px}
+  .meter{height:9px;background:var(--line);border-radius:5px;margin-top:11px;position:relative;overflow:hidden}
+  .meter i{display:block;height:100%;background:#2FA84F;width:0;transition:width .3s}
+  .meter.bad i{background:var(--amber)}
+  .limit{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
+  .rows{max-height:250px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .rows table{margin:0}
+  .rows th{position:sticky;top:0;background:var(--page)}
+  .sum{display:flex;gap:26px;flex-wrap:wrap;margin:14px 0 0;font-size:13px;color:var(--grey)}
+  .sum b{color:var(--ink);font-family:var(--mono)}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <h1>Week 2 Lab Bench</h1>
+    <div class="course">PSYC&nbsp;4514 · Building Cognitive Experiments</div>
+  </div>
+  <nav>
+    <button data-tab="cb" aria-selected="true">Counterbalancing</button>
+    <button data-tab="loop" aria-selected="false">Order of trials</button>
+    <button data-tab="hunt" aria-selected="false">Find the flaw</button>
+    <button data-tab="budget" aria-selected="false">Will it fit?</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+<!-- ============================ MODULE 1 ============================ -->
+<section class="tab on" id="cb">
+  <h2>Randomization cannot do magic</h2>
+  <p class="lede">Randomly assigning people to conditions works — with enough people.
+  Set the number of participants to the size of this class and see what actually happens.</p>
+
+  <div class="split">
+    <div class="panel">
+      <div class="ctrl">
+        <label>Factor A — levels <span class="num" id="aV">2</span></label>
+        <input type="range" id="aR" min="2" max="4" step="1" value="2">
+      </div>
+      <div class="ctrl">
+        <label>Factor B — levels <span class="num" id="bV">2</span></label>
+        <input type="range" id="bR" min="1" max="3" step="1" value="2">
+      </div>
+      <div class="ctrl">
+        <label>Participants <span class="num" id="nV">14</span></label>
+        <input type="range" id="nR" min="4" max="60" step="1" value="14">
+      </div>
+      <div class="row" style="margin-top:18px">
+        <button class="btn" id="randBtn">Assign at random</button>
+        <button class="btn ghost" id="cbBtn">Counterbalance</button>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn ghost sm" id="rand20">Random, 20 times</button>
+      </div>
+      <p class="note" style="margin-top:16px">In your project these two factors are
+      things like <b>key mapping</b> and <b>block order</b> — nuisance variables you do not
+      care about, but which must not line up with your conditions.</p>
+    </div>
+
+    <div>
+      <h3 id="cbHead">Participants per cell</h3>
+      <div class="cells" id="cells"></div>
+      <div class="scoreline">
+        <div class="stat"><div class="v" id="cellsV">4</div><div class="k">cells to fill</div></div>
+        <div class="stat hero"><div class="v" id="impV">—</div><div class="k">largest gap between cells</div></div>
+      </div>
+      <div class="verdict" id="cbVerdict"></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>The rule of thumb.</b> Randomization balances nuisance variables <em>on average, over
+    many participants</em>. Counterbalancing balances them <em>by construction, every time</em>.
+    With a class-sized sample you cannot afford to wait for the average.
+  </div>
+</section>
+
+<!-- ============================ MODULE 2 ============================ -->
+<section class="tab" id="loop">
+  <h2>What the loop actually does</h2>
+  <p class="lede">Your conditions file has 10 rows. The loop repeats it. These four settings
+  decide the order you get — and one of them quietly breaks the balance you built into the file.</p>
+
+  <div class="modes">
+    <button data-mode="sequential" aria-pressed="true">sequential</button>
+    <button data-mode="fixed" aria-pressed="false">fixed random</button>
+    <button data-mode="random" aria-pressed="false">random</button>
+    <button data-mode="full" aria-pressed="false">full random</button>
+  </div>
+
+  <div class="ctrl" style="max-width:290px">
+    <label>Repetitions of the file <span class="num" id="repV">5</span></label>
+    <input type="range" id="repR" min="1" max="5" step="1" value="5">
+  </div>
+
+  <div class="loopbars" id="loopbars"></div>
+  <p class="note" style="margin-top:9px">Each bar is one trial. Its height is a value taken from
+  that row of the conditions file — stimulus duration, difficulty, whatever your design varies.
+  Dashed lines separate repetitions.</p>
+
+  <h3 style="margin-top:26px">How many times each row was used</h3>
+  <div class="counts" id="counts"></div>
+  <div class="verdict" id="loopVerdict"></div>
+
+  <div class="callout">
+    <b>Sampling without replacement.</b> Think of the rows as chess pieces in a box: you shake it
+    and draw them out one at a time, and a piece you have drawn does not go back in. That is what
+    <em>random</em> does — every row appears exactly once per repetition, so any balancing you built
+    into the file survives. <em>Full random</em> puts the pieces back, and the balance is gone.
+  </div>
+</section>
+
+<!-- ============================ MODULE 3 ============================ -->
+<section class="tab" id="hunt">
+  <h2>Find the flaw</h2>
+  <p class="lede">Seven designs. Each one is broken, or is at least being asked to do something
+  it cannot do. Say what is wrong before you read the answer.</p>
+
+  <div class="qcard">
+    <div class="qmeta">
+      <span>Design <span class="num" id="qNum">1</span> of <span class="num" id="qTot">7</span></span>
+      <span>Correct so far: <span class="num" id="qScore">0</span></span>
+    </div>
+    <p class="qtext" id="qText"></p>
+    <div class="opts" id="qOpts"></div>
+    <div class="fb" id="qFb"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="nextBtn" disabled>Next design</button>
+      <button class="btn ghost" id="restartBtn">Start over</button>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Two different problems.</b> A confound means something you did not intend is lined up with
+    your conditions, so the result has more than one explanation. Low power means the design is
+    clean but too small or too short to see the effect. The first one you fix by changing the design;
+    the second by adding trials or participants. Do not treat every problem as a confound.
+  </div>
+</section>
+
+<!-- ============================ MODULE 4 ============================ -->
+<section class="tab" id="budget">
+  <h2>Will it fit in one session?</h2>
+  <p class="lede">Your design decides how many rows the conditions file has. The rows, the repetitions and
+  the length of a trial decide how long the task runs. Two things pull against each other here — read both.</p>
+
+  <div class="split">
+    <div class="panel">
+      <h3>Your factors</h3>
+      <div class="faclab"><span>Factor 1 — your manipulation</span><span>levels</span></div>
+      <div class="fac"><input type="text" id="f0n" value="congruency"><select id="f0l"></select></div>
+      <div class="faclab"><span>Factor 2 — something else you vary</span><span>levels</span></div>
+      <div class="fac"><input type="text" id="f1n" value="ink color"><select id="f1l"></select></div>
+      <div class="faclab"><span>Factor 3 — optional</span><span>levels</span></div>
+      <div class="fac"><input type="text" id="f2n" value=""><select id="f2l"></select></div>
+
+      <div class="ctrl" style="margin-top:18px">
+        <label>Repetitions of the file <span class="num" id="repV2">8</span></label>
+        <input type="range" id="repR2" min="1" max="20" step="1" value="8">
+      </div>
+      <div class="ctrl">
+        <label>Seconds per trial <span class="num" id="sptV">2.5</span></label>
+        <input type="range" id="sptR" min="1" max="5" step="0.1" value="2.5">
+      </div>
+      <div class="ctrl">
+        <label>Practice trials <span class="num" id="pracV">8</span></label>
+        <input type="range" id="pracR" min="0" max="24" step="2" value="8">
+      </div>
+      <div class="ctrl">
+        <label>Instructions and breaks <span class="num" id="ovV">40 s</span></label>
+        <input type="range" id="ovR" min="0" max="120" step="10" value="40">
+      </div>
+      <div class="ctrl">
+        <label>Time limit <span class="num" id="limV">4.0 min</span></label>
+        <input type="range" id="limR" min="120" max="600" step="30" value="240">
+      </div>
+    </div>
+
+    <div>
+      <div class="gauges">
+        <div class="gauge" id="gTime">
+          <div class="v" id="durV">—</div>
+          <div class="k">how long the task runs</div>
+          <div class="meter" id="durMeter"><i></i><span class="limit"></span></div>
+          <div class="t" id="durT"></div>
+        </div>
+        <div class="gauge" id="gTrials">
+          <div class="v" id="perV">—</div>
+          <div class="k" id="perK">trials per level of factor 1</div>
+          <div class="meter" id="perMeter"><i></i><span class="limit"></span></div>
+          <div class="t" id="perT"></div>
+        </div>
+      </div>
+
+      <h3>The conditions file this produces</h3>
+      <div class="rows"><table id="condTable"><thead></thead><tbody></tbody></table></div>
+      <div class="sum" id="sumLine"></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Both gauges are the same slider.</b> Shorten the task and the trials per condition fall with it;
+    add trials and the session overruns. The way out is usually fewer factors, not fewer trials — every
+    extra factor multiplies the rows, and most of them are things you could have held constant instead.
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============ tabs ============ */
+const tabs = document.querySelectorAll('nav button');
+tabs.forEach(b => b.addEventListener('click', () => {
+  tabs.forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+}));
+
+const $ = id => document.getElementById(id);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/* ============ MODULE 1 : counterbalancing ============ */
+const A = $('aR'), B = $('bR'), N = $('nR');
+let lastMode = null;
+
+function labels() {
+  const na = +A.value, nb = +B.value, out = [];
+  for (let i = 0; i < na; i++)
+    for (let j = 0; j < nb; j++)
+      out.push(nb === 1 ? 'A' + (i + 1) : 'A' + (i + 1) + ' · B' + (j + 1));
+  return out;
+}
+function drawCells(counts, mode) {
+  const labs = labels(), n = +N.value;
+  const ideal = n / labs.length;
+  const grid = $('cells');
+  grid.style.gridTemplateColumns = 'repeat(' + Math.min(labs.length, 4) + ',1fr)';
+  const max = Math.max(1, ...(counts || [1]));
+  grid.innerHTML = '';
+  labs.forEach((l, i) => {
+    const c = counts ? counts[i] : 0;
+    const hot = counts && Math.abs(c - ideal) > 1;
+    const d = document.createElement('div');
+    d.className = 'cell' + (hot ? ' hot' : '');
+    d.innerHTML = '<div class="lab">' + l + '</div><div class="cnt">' +
+      (counts ? c : '—') + '</div><div class="track"><i style="width:' +
+      (counts ? (c / max * 100) : 0) + '%"></i></div>';
+    grid.appendChild(d);
+  });
+  $('cellsV').textContent = labs.length;
+  if (!counts) { $('impV').textContent = '—'; $('cbVerdict').textContent = ''; return; }
+  const gap = Math.max(...counts) - Math.min(...counts);
+  $('impV').textContent = gap;
+  $('cbHead').textContent = mode === 'cb' ? 'Participants per cell — counterbalanced' :
+                                            'Participants per cell — random assignment';
+  if (mode === 'cb')
+    $('cbVerdict').innerHTML = 'Dealt out in order, so the gap is <b>' + gap +
+      '</b>. It can never be more than 1, whatever the class size.';
+  else if (gap === 0)
+    $('cbVerdict').innerHTML = 'This time chance was kind: a gap of <b>0</b>. Press the button again.';
+  else
+    $('cbVerdict').innerHTML = 'One cell has <b>' + gap + '</b> more participants than another. ' +
+      'Nothing went wrong — this is what random assignment does at n&nbsp;=&nbsp;' + N.value + '.';
+}
+function randomCounts() {
+  const k = labels().length, n = +N.value, c = new Array(k).fill(0);
+  for (let i = 0; i < n; i++) c[Math.floor(Math.random() * k)]++;
+  return c;
+}
+function cbCounts() {
+  const k = labels().length, n = +N.value, c = new Array(k).fill(0);
+  for (let i = 0; i < n; i++) c[i % k]++;
+  return c;
+}
+$('randBtn').addEventListener('click', () => { lastMode = 'rand'; drawCells(randomCounts(), 'rand'); });
+$('cbBtn').addEventListener('click', () => { lastMode = 'cb'; drawCells(cbCounts(), 'cb'); });
+$('rand20').addEventListener('click', () => {
+  let worst = -1, worstC = null, sum = 0;
+  for (let r = 0; r < 20; r++) {
+    const c = randomCounts(), g = Math.max(...c) - Math.min(...c);
+    sum += g;
+    if (g > worst) { worst = g; worstC = c; }
+  }
+  lastMode = 'rand';
+  drawCells(worstC, 'rand');
+  $('cbVerdict').innerHTML = 'Twenty runs of random assignment at n&nbsp;=&nbsp;' + N.value +
+    '. Average gap <b>' + (sum / 20).toFixed(1) + '</b>, worst gap <b>' + worst +
+    '</b> — shown above. Counterbalancing would have given 0 or 1 every single time.';
+});
+[A, B, N].forEach(r => r.addEventListener('input', () => {
+  $('aV').textContent = A.value; $('bV').textContent = B.value; $('nV').textContent = N.value;
+  drawCells(null);
+}));
+drawCells(null);
+
+/* ============ MODULE 2 : loop ordering ============ */
+const ROWS = 10;
+const VALUES = Array.from({ length: ROWS }, (_, i) => 22 + i * 8); // a clean ramp, like the book figure
+let mode = 'sequential';
+const fixedOrder = shuffle([...Array(ROWS).keys()]);
+
+function buildOrder(reps) {
+  const out = [];
+  for (let r = 0; r < reps; r++) {
+    if (r > 0) out.push(null);                       // separator
+    if (mode === 'sequential') out.push(...[...Array(ROWS).keys()]);
+    else if (mode === 'fixed') out.push(...fixedOrder);
+    else if (mode === 'random') out.push(...shuffle([...Array(ROWS).keys()]));
+    else for (let i = 0; i < ROWS; i++) out.push(Math.floor(Math.random() * ROWS));
+  }
+  return out;
+}
+function drawLoop() {
+  const reps = +$('repR').value;
+  const order = buildOrder(reps);
+  const wrapEl = $('loopbars');
+  wrapEl.innerHTML = '';
+  const counts = new Array(ROWS).fill(0);
+  order.forEach(i => {
+    const d = document.createElement('div');
+    if (i === null) { d.className = 'lb sep'; wrapEl.appendChild(d); return; }
+    counts[i]++;
+    d.className = 'lb';
+    d.style.height = (VALUES[i] / VALUES[ROWS - 1] * 100) + '%';
+    d.title = 'row ' + (i + 1);
+    wrapEl.appendChild(d);
+  });
+  const cc = $('counts');
+  cc.innerHTML = '';
+  counts.forEach((c, i) => {
+    const s = document.createElement('div');
+    s.className = 'cchip' + (c === reps ? '' : ' off');
+    s.innerHTML = 'row ' + (i + 1) + ' · <b>' + c + '×</b>';
+    cc.appendChild(s);
+  });
+  const uneven = counts.some(c => c !== reps);
+  const txt = {
+    sequential: 'The file is stepped through top to bottom, the same way every repetition. Every row is used exactly ' + reps + ' time' + (reps > 1 ? 's' : '') + '. Use this when the order is part of the design — a digit span that gets longer, for instance.',
+    fixed: 'One scrambled order, then the same scrambled order again. It looks random to the participant, but every participant gets exactly the same sequence — which is what you want when the order itself has to be held constant.',
+    random: 'Reshuffled on every repetition, but still sampled without replacement: each row comes up exactly once per repetition. Whatever you balanced in the file stays balanced.',
+    full: 'Drawn with replacement from the whole file. Look at the counts — some rows ran ' + Math.max(...counts) + ' times, others ' + Math.min(...counts) + '. The balance you built into the conditions file is gone.'
+  }[mode];
+  $('loopVerdict').innerHTML = txt + (uneven && mode !== 'full' ? '' : '');
+}
+document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('.modes button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  drawLoop();
+}));
+$('repR').addEventListener('input', () => { $('repV').textContent = $('repR').value; drawLoop(); });
+drawLoop();
+
+/* ============ MODULE 3 : confound hunter ============ */
+const Q = [
+  {
+    t: 'You want to know whether caffeine improves attention. You test the coffee drinkers in the morning and the non-drinkers in the afternoon.',
+    o: [
+      ['Time of day is lined up with group, so it explains the result just as well as caffeine does.', 1,
+       'Correct. Every difference you find could be caffeine or could be morning versus afternoon, and nothing in the data can separate them. Test both groups across both times of day.'],
+      ['There are not enough trials to detect the effect.', 0,
+       'Trial count is not the problem here. Even with a thousand trials you could not tell caffeine apart from time of day.'],
+      ['The response keys were not counterbalanced.', 0,
+       'That is a real concern in general, but it is not what breaks this design.'],
+      ['Nothing is wrong — this is a normal between-groups study.', 0,
+       'It is a between-groups study, but the groups differ on two things at once.']
+    ]
+  },
+  {
+    t: 'In your Stroop task, all the congruent trials run first, then all the incongruent trials.',
+    o: [
+      ['Practice and fatigue are lined up with condition.', 1,
+       'Correct. By the time the incongruent block starts, the participant has warmed up — and by the end of it, they are tired. Both effects are now part of your "Stroop effect". Interleave the trials, or counterbalance the block order.'],
+      ['The words differ in length.', 0,
+       'That is a separate issue and it comes up later in this quiz — but it is not what this design does wrong.'],
+      ['The sample is too small.', 0,
+       'Sample size is not what is broken here. The order is.'],
+      ['Nothing is wrong — blocking is standard practice.', 0,
+       'Blocking is standard, but a fixed block order is not. If you block, you counterbalance the order across participants.']
+    ]
+  },
+  {
+    t: 'Every participant in your study responds with D for red and K for yellow. The mapping is never changed.',
+    o: [
+      ['Any advantage of one hand or finger is baked into every single dataset.', 1,
+       'Correct. If D happens to be faster than K, then red looks faster than yellow in everyone. Counterbalance the mapping: half your participants get the reverse. With an odd number, the leftover person is a rounding error, not a disaster.'],
+      ['Time of day is confounded with response.', 0,
+       'Not in this description — nothing has been said about when people are tested.'],
+      ['The trial count is too low.', 0,
+       'Nothing here tells you the trial count. The problem is in the mapping.'],
+      ['Nothing is wrong — the keys are arbitrary.', 0,
+       'The keys are arbitrary, which is exactly why leaving them fixed is avoidable. An arbitrary choice that is the same for everyone becomes a systematic effect.']
+    ]
+  },
+  {
+    t: 'Incongruent words are shown for 300 ms and congruent words for 200 ms, because incongruent trials are "harder and need more time".',
+    o: [
+      ['Presentation duration is now lined up with condition.', 1,
+       'Correct. A longer viewing time changes the task itself, so any difference in reaction time has two explanations. Hold everything you are not manipulating constant — that is what experimental control means.'],
+      ['The difficulty difference is too small to matter.', 0,
+       'The size of the difficulty difference is not the issue. The issue is that a second thing changed with it.'],
+      ['Reaction time should not be measured at all here.', 0,
+       'Reaction time is exactly the right measure. The design around it is what is broken.'],
+      ['Nothing is wrong — the durations reflect task demands.', 0,
+       'Adjusting the design to the condition is how you lose the comparison. If both conditions need more time, give both conditions more time.']
+    ]
+  },
+  {
+    t: 'You build a Turkish Stroop task with the words KIRMIZI, YEŞİL, MAVİ and SARI — seven, five, four and four letters.',
+    o: [
+      ['Word length varies with color, so any color-specific difference is partly a length effect.', 1,
+       'Correct, and this one is hard to escape: color words simply differ in length in every language. You can match lengths by choosing different colors, or analyze color by color, but at minimum you name it in your limitations. Our own Week 1 demo has this flaw.'],
+      ['Turkish is not suitable for Stroop tasks.', 0,
+       'It is perfectly suitable. Stroop has been demonstrated in many languages.'],
+      ['Four colors are too many.', 0,
+       'Four is the standard number. The number of colors is not the problem.'],
+      ['Nothing is wrong — participants read the word anyway.', 0,
+       'They are told not to read the word, but reading happens automatically — that is the whole point of Stroop, and it is why length matters.']
+    ]
+  },
+  {
+    t: 'In a class of fourteen, you plan to compare gamers with non-gamers on a task-switching measure: seven in each group.',
+    o: [
+      ['There is no confound. The design is clean but far too small to detect a realistic effect.', 1,
+       'Correct, and this is the distinction worth keeping. Nothing is lined up with anything here — the study is simply underpowered. Seven against seven cannot resolve a difference of a few tens of milliseconds. A within-subject design would give you every participant in both conditions.'],
+      ['Gaming experience is confounded with switch cost.', 0,
+       'Gaming experience is the variable of interest, not a confound. A confound is something you did not intend to vary.'],
+      ['The groups will differ in age.', 0,
+       'Possible, but nothing in the description says so — and it would be a separate problem from the main one.'],
+      ['Nothing is wrong — fourteen participants is a normal class study.', 0,
+       'Fourteen is a normal class study, but not split into two groups of seven. Keep all fourteen in every condition.']
+    ]
+  },
+  {
+    t: 'Your task is well designed and fully counterbalanced. You run ten trials per condition and go looking for a 40 ms effect.',
+    o: [
+      ['There is no confound. Ten trials leaves the estimate dominated by noise.', 1,
+       'Correct. A single reaction time carries a lot of random variation, and averaging ten of them does not remove much of it. The same true effect can come back as anything from strongly negative to double its real size — which is what the Week 1 simulator shows. Averaging over trials, and then over participants, is what makes a small effect visible.'],
+      ['Ten trials per condition is a confound.', 0,
+       'Trial count is not a confound. Nothing is lined up with your conditions — there is simply too little data.'],
+      ['A 40 ms effect is too small to be real.', 0,
+       'Most effects in this course are in the tens of milliseconds. They are real; they just need enough trials to be seen.'],
+      ['Nothing is wrong — counterbalancing takes care of it.', 0,
+       'Counterbalancing protects you from confounds. It does nothing about noise.']
+    ]
+  }
+];
+
+let qi = 0, score = 0, answered = false;
+function renderQ() {
+  const q = Q[qi];
+  answered = false;
+  $('qNum').textContent = qi + 1;
+  $('qTot').textContent = Q.length;
+  $('qScore').textContent = score;
+  $('qText').textContent = q.t;
+  $('qFb').classList.remove('on');
+  $('nextBtn').disabled = true;
+  $('nextBtn').textContent = qi === Q.length - 1 ? 'See the summary' : 'Next design';
+  const box = $('qOpts');
+  box.innerHTML = '';
+  const opts = shuffle(q.o.slice());   // never let the answer sit in the same slot
+  opts.forEach(([text, ok, why]) => {
+    const b = document.createElement('button');
+    b.className = 'opt'; b.type = 'button'; b.textContent = text;
+    b.addEventListener('click', () => {
+      if (answered) return;
+      answered = true;
+      if (ok) score++;
+      [...box.children].forEach((el, k) => {
+        el.disabled = true;
+        if (opts[k][1]) el.classList.add('right');
+      });
+      if (!ok) b.classList.add('wrong');
+      $('qScore').textContent = score;
+      $('qFb').innerHTML = '<b>' + (ok ? 'Yes. ' : 'Not this one. ') + '</b>' + why;
+      $('qFb').classList.add('on');
+      $('nextBtn').disabled = false;
+    });
+    box.appendChild(b);
+  });
+}
+$('nextBtn').addEventListener('click', () => {
+  if (qi < Q.length - 1) { qi++; renderQ(); }
+  else {
+    $('qText').textContent = 'You identified ' + score + ' of ' + Q.length + ' correctly.';
+    $('qOpts').innerHTML = '';
+    $('qFb').innerHTML = '<b>Worth remembering. </b>Four of these were confounds — something ' +
+      'unintended lined up with the conditions. Two were power problems: a clean design asked to ' +
+      'do more than its size allows. One was both hard to avoid and worth declaring. Telling them ' +
+      'apart decides whether you fix your design or add more data.';
+    $('qFb').classList.add('on');
+    $('nextBtn').disabled = true;
+  }
+});
+$('restartBtn').addEventListener('click', () => { qi = 0; score = 0; renderQ(); });
+renderQ();
+
+/* ============ MODULE 4 : design table and time budget ============ */
+['f0l', 'f1l', 'f2l'].forEach((id, k) => {
+  const sel = $(id);
+  const opts = k === 0 ? [2, 3, 4] : [1, 2, 3, 4];
+  opts.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v === 1 ? 'off' : v;
+    sel.appendChild(o);
+  });
+  sel.value = k === 0 ? 2 : (k === 1 ? 4 : 1);
+  sel.addEventListener('change', budget);
+});
+['f0n', 'f1n', 'f2n'].forEach(id => $(id).addEventListener('input', budget));
+const BR = { rep: $('repR2'), spt: $('sptR'), prac: $('pracR'), ov: $('ovR'), lim: $('limR') };
+Object.values(BR).forEach(r => r.addEventListener('input', budget));
+
+const mmss = s => Math.floor(s / 60) + ':' + String(Math.round(s % 60)).padStart(2, '0');
+
+function budget() {
+  const facs = [0, 1, 2].map(k => ({
+    name: ($('f' + k + 'n').value || ('factor ' + (k + 1))).trim(),
+    levels: +$('f' + k + 'l').value
+  })).filter(f => f.levels > 1);
+  [0, 1, 2].forEach(k => document.querySelectorAll('.fac')[k]
+    .classList.toggle('off', +$('f' + k + 'l').value === 1));
+
+  const reps = +BR.rep.value, spt = +BR.spt.value, prac = +BR.prac.value;
+  const ov = +BR.ov.value, lim = +BR.lim.value;
+  $('repV2').textContent = reps;
+  $('sptV').textContent = spt.toFixed(1);
+  $('pracV').textContent = prac;
+  $('ovV').textContent = ov + ' s';
+  $('limV').textContent = (lim / 60).toFixed(1) + ' min';
+
+  const rows = facs.reduce((a, f) => a * f.levels, 1);
+  const main = rows * reps;
+  const total = main + prac;
+  const dur = total * spt + ov;
+  const perLevel = facs.length ? Math.round(main / facs[0].levels) : 0;
+
+  // time gauge
+  const overTime = dur > lim;
+  $('durV').textContent = mmss(dur);
+  $('gTime').className = 'gauge ' + (overTime ? 'bad' : 'ok');
+  const m1 = $('durMeter');
+  m1.classList.toggle('bad', overTime);
+  m1.querySelector('i').style.width = Math.min(100, dur / (lim * 1.4) * 100) + '%';
+  m1.querySelector('.limit').style.left = (1 / 1.4 * 100) + '%';
+  $('durT').textContent = overTime
+    ? 'Over the limit by ' + mmss(dur - lim) + '. Everyone in the rotation waits for this.'
+    : mmss(lim - dur) + ' to spare.';
+
+  // trials gauge
+  const thin = perLevel < 30;
+  $('perV').textContent = perLevel;
+  $('perK').textContent = 'trials per level of ' + (facs.length ? facs[0].name : 'factor 1');
+  $('gTrials').className = 'gauge ' + (thin ? 'bad' : 'ok');
+  const m2 = $('perMeter');
+  m2.classList.toggle('bad', thin);
+  m2.querySelector('i').style.width = Math.min(100, perLevel / 84 * 100) + '%';
+  m2.querySelector('.limit').style.left = (30 / 84 * 100) + '%';
+  $('perT').textContent = thin
+    ? 'Thin. Below about 30 the estimate starts to wobble — see Week 1, third tab.'
+    : 'Comfortable for an effect of a few tens of milliseconds.';
+
+  // conditions table
+  const thead = $('condTable').querySelector('thead');
+  const tbody = $('condTable').querySelector('tbody');
+  thead.innerHTML = '<tr><th>#</th>' + facs.map(f => '<th>' + f.name + '</th>').join('') + '</tr>';
+  tbody.innerHTML = '';
+  const combos = facs.reduce((acc, f) => {
+    const out = [];
+    acc.forEach(a => { for (let i = 1; i <= f.levels; i++) out.push(a.concat(f.name + ' ' + i)); });
+    return out;
+  }, [[]]);
+  combos.slice(0, 40).forEach((c, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="n">' + (i + 1) + '</td>' + c.map(v => '<td>' + v + '</td>').join('');
+    tbody.appendChild(tr);
+  });
+  if (combos.length > 40) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="' + (facs.length + 1) + '" class="note">… and ' +
+      (combos.length - 40) + ' more rows</td>';
+    tbody.appendChild(tr);
+  }
+  $('sumLine').innerHTML =
+    '<span>rows in the file <b>' + rows + '</b></span>' +
+    '<span>× repetitions <b>' + reps + '</b></span>' +
+    '<span>+ practice <b>' + prac + '</b></span>' +
+    '<span>= trials <b>' + total + '</b></span>';
+}
+budget();
+</script>
+</body>
+</html>

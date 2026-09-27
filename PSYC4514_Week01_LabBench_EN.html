@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 1 Lab Bench — Building Cognitive Experiments</title>
+<style>
+  :root{
+    --deep:#065A82; --teal:#1C7293; --mid:#21295C; --ink:#16203D;
+    --amber:#D98A1F; --amber-soft:#FDF3E3;
+    --grey:#5B6478; --line:#D5DCE6; --panel:#EEF3F8; --page:#FFFFFF;
+    --field:#141414;
+    --red:#E23B3B; --green:#2FA84F; --blue:#3B72E2; --yellow:#E3B21A;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,Cambria,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans); color:var(--ink); background:var(--page);
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 72px}
+
+  /* ---------- masthead ---------- */
+  header.top{border-bottom:1px solid var(--line);background:var(--page);
+    position:sticky;top:0;z-index:20}
+  .top-inner{max-width:1080px;margin:0 auto;padding:18px 24px 0;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between}
+  h1{font-family:var(--serif);font-size:22px;font-weight:700;margin:0;letter-spacing:-.2px}
+  .course{font-size:13px;color:var(--grey);font-variant-numeric:tabular-nums}
+  nav{max-width:1080px;margin:0 auto;padding:14px 24px 0;display:flex;gap:2px}
+  nav button{
+    font:inherit;font-size:14px;border:1px solid transparent;border-bottom:none;
+    background:none;color:var(--grey);padding:9px 16px;cursor:pointer;
+    border-radius:6px 6px 0 0;margin-bottom:-1px;
+  }
+  nav button:hover{color:var(--ink);background:var(--panel)}
+  nav button[aria-selected="true"]{
+    background:var(--page);border-color:var(--line);color:var(--ink);font-weight:600;
+  }
+  nav button:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+
+  /* ---------- generic ---------- */
+  section.tab{display:none;padding-top:32px}
+  section.tab.on{display:block}
+  h2{font-family:var(--serif);font-size:26px;margin:0 0 6px;font-weight:700}
+  .lede{color:var(--grey);max-width:64ch;margin:0 0 28px;font-size:15px}
+  h3{font-size:15px;margin:0 0 10px;font-weight:600}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+  .note{font-size:13px;color:var(--grey)}
+  .btn{
+    font:inherit;font-size:14px;font-weight:600;border-radius:6px;cursor:pointer;
+    padding:10px 18px;border:1px solid var(--deep);background:var(--deep);color:#fff;
+  }
+  .btn:hover{background:#054d70}
+  .btn.ghost{background:transparent;color:var(--deep)}
+  .btn.ghost:hover{background:var(--panel)}
+  .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* ---------- module 1: trial anatomy ---------- */
+  .bench{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+  @media(max-width:860px){.bench{grid-template-columns:1fr}}
+  .field{
+    background:var(--field);border-radius:8px;height:300px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:52px;font-weight:700;letter-spacing:.5px;
+    user-select:none;
+  }
+  .field.blank{color:transparent}
+  #stageLabel{margin-top:12px;display:flex;justify-content:space-between;
+    font-size:13px;color:var(--grey)}
+  #stageLabel b{color:var(--ink)}
+  .timeline{display:flex;height:34px;border-radius:6px;overflow:hidden;
+    border:1px solid var(--line);margin-top:18px}
+  .timeline div{display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:#fff;transition:opacity .15s;opacity:.35;white-space:nowrap;overflow:hidden}
+  .timeline div.act{opacity:1}
+  .ctrl{margin-bottom:16px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px}
+  .ctrl input[type=range]{width:100%;accent-color:var(--teal)}
+  ol.seq{margin:0;padding-left:20px;font-size:13.5px;color:var(--grey)}
+  ol.seq li{margin-bottom:7px}
+  ol.seq b{color:var(--ink)}
+
+  /* ---------- module 2: stroop ---------- */
+  .taskfield{
+    background:var(--field);border-radius:8px;min-height:380px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+    position:relative;user-select:none;padding:28px;text-align:center;
+  }
+  .word{font-size:min(76px,17vw);font-weight:700;letter-spacing:1px;line-height:1}
+  .fix{font-size:54px;color:#fff}
+  .msg{color:#fff;max-width:46ch;font-size:16px}
+  .msg h4{font-family:var(--serif);font-size:24px;margin:0 0 12px;font-weight:700}
+  .fb{font-size:22px;font-weight:600}
+  .keymap{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+  .key{
+    border:1px solid var(--line);border-radius:6px;background:var(--page);
+    padding:8px 14px;font-size:14px;cursor:pointer;font:inherit;display:flex;
+    gap:8px;align-items:center;
+  }
+  .key:hover{border-color:var(--teal)}
+  .key:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+  .key kbd{
+    font-family:var(--mono);font-size:12px;background:var(--panel);
+    border:1px solid var(--line);border-radius:4px;padding:2px 7px;
+  }
+  .swatch{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .progress{height:4px;background:var(--line);border-radius:2px;margin-top:16px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--teal);width:0;transition:width .2s}
+  .setup{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px}
+  .setup label{font-size:13px;display:block;margin-bottom:5px;color:var(--grey)}
+  select,input[type=number]{font:inherit;font-size:14px;padding:8px 10px;
+    border:1px solid var(--line);border-radius:6px;background:var(--page);color:var(--ink)}
+
+  /* results */
+  .results{display:none;margin-top:28px}
+  .results.on{display:block}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
+  @media(max-width:720px){.stats{grid-template-columns:1fr}}
+  .stat{border:1px solid var(--line);border-radius:8px;padding:16px}
+  .stat .v{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--deep);
+    font-variant-numeric:tabular-nums;line-height:1.2}
+  .stat .k{font-size:13px;color:var(--grey);margin-top:2px}
+  .stat.hero{background:var(--mid);border-color:var(--mid)}
+  .stat.hero .v{color:var(--amber)}
+  .stat.hero .k{color:#B8C6E0}
+  .bars{display:flex;gap:28px;align-items:flex-end;height:190px;
+    padding:0 10px;border-bottom:1px solid var(--line)}
+  .bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+  .bar i{display:block;width:100%;max-width:130px;border-radius:5px 5px 0 0;
+    background:var(--teal);transition:height .5s}
+  .bar.inc i{background:var(--deep)}
+  .bar span{font-family:var(--mono);font-size:14px;margin-bottom:7px;font-weight:600}
+  .barlabs{display:flex;gap:28px;padding:9px 10px 0}
+  .barlabs div{flex:1;text-align:center;font-size:13px;color:var(--grey)}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{font-weight:600;color:var(--grey);font-size:12px}
+  td.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .scroll{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+
+  /* ---------- module 3: simulator ---------- */
+  .simgrid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+  @media(max-width:860px){.simgrid{grid-template-columns:1fr}}
+  .strip{position:relative;height:150px;border:1px solid var(--line);
+    border-radius:8px;background:var(--page);overflow:hidden}
+  .strip .zero,.strip .truth{position:absolute;top:0;bottom:22px;width:1px}
+  .strip .zero{background:var(--line)}
+  .strip .truth{background:var(--amber);width:2px}
+  .dot{position:absolute;width:9px;height:9px;border-radius:50%;
+    background:var(--teal);opacity:.62;transform:translate(-50%,-50%)}
+  .axis{position:absolute;bottom:0;left:0;right:0;height:22px;
+    font-size:11px;color:var(--grey);font-family:var(--mono)}
+  .axis span{position:absolute;transform:translateX(-50%)}
+  .verdict{margin-top:16px;font-size:14px}
+  .verdict b{font-family:var(--mono)}
+
+  .callout{background:var(--amber-soft);border:1px solid #F0D6A8;border-radius:8px;
+    padding:16px 18px;font-size:14px;color:#6B4708;margin-top:26px}
+  .callout b{color:#8A5A10}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <h1>Week 1 Lab Bench</h1>
+    <div class="course">PSYC&nbsp;4514 · Building Cognitive Experiments</div>
+  </div>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="anatomy">Trial anatomy</button>
+    <button role="tab" aria-selected="false" data-tab="stroop">Run a Stroop task</button>
+    <button role="tab" aria-selected="false" data-tab="sim">Why so many trials?</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+<!-- ============ MODULE 1 ============ -->
+<section class="tab on" id="anatomy" role="tabpanel" tabindex="0">
+  <h2>What one trial looks like</h2>
+  <p class="lede">Every task in this course is this four-part unit, repeated. Change the timings
+    and watch what the participant would actually see.</p>
+
+  <div class="bench">
+    <div>
+      <div class="field" id="animField">+</div>
+      <div id="stageLabel"><span>Stage: <b id="stageName">Fixation</b></span>
+        <span class="num" id="stageMs">500 ms</span></div>
+      <div class="timeline" id="timeline"></div>
+
+      <div class="row" style="margin-top:18px">
+        <button class="btn" id="playBtn">Play trial</button>
+        <button class="btn ghost" id="loopBtn">Loop</button>
+      </div>
+      <p class="note" style="margin-top:14px">Reaction time is measured from the moment the
+        stimulus appears until the key is pressed — not from the start of the trial.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Timings</h3>
+      <div class="ctrl">
+        <label><span>Fixation</span><span class="num" id="fixV">500 ms</span></label>
+        <input type="range" id="fixR" min="100" max="1500" step="50" value="500">
+      </div>
+      <div class="ctrl">
+        <label><span>Stimulus</span><span class="num" id="stimV">800 ms</span></label>
+        <input type="range" id="stimR" min="150" max="2000" step="50" value="800">
+      </div>
+      <div class="ctrl">
+        <label><span>Blank after response</span><span class="num" id="itiV">800 ms</span></label>
+        <input type="range" id="itiR" min="200" max="2000" step="50" value="800">
+      </div>
+      <h3 style="margin-top:22px">Why each part exists</h3>
+      <ol class="seq">
+        <li><b>Fixation</b> gives the eye somewhere to rest and signals a trial is starting.</li>
+        <li><b>Stimulus</b> is the thing you manipulate — here, a coloured word.</li>
+        <li><b>Response</b> is recorded with its timestamp.</li>
+        <li><b>Blank</b> keeps one trial from bleeding into the next.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>Notice the black screen.</b> Experiment displays are deliberately plain: no logos,
+    no borders, nothing moving. Anything extra is a variable you did not intend to add.
+  </div>
+</section>
+
+<!-- ============ MODULE 2 ============ -->
+<section class="tab" id="stroop" role="tabpanel" tabindex="0">
+  <h2>Run a Stroop task on yourself</h2>
+  <p class="lede">Name the <em>ink colour</em> and ignore the word. You will get your own reaction
+    times back at the end, in the same shape as the file PsychoPy produces.</p>
+
+  <div class="setup">
+    <div>
+      <label for="langSel">Word language</label>
+      <select id="langSel">
+        <option value="tr">Turkish</option>
+        <option value="en" selected>English</option>
+      </select>
+    </div>
+    <div>
+      <label for="nTrials">Trials in the main block</label>
+      <input type="number" id="nTrials" min="8" max="120" step="4" value="32" style="width:110px">
+    </div>
+    <button class="btn" id="startBtn">Start</button>
+  </div>
+
+  <div class="taskfield" id="taskField">
+    <div class="msg">
+      <h4>Before you start</h4>
+      <p>Four colours, four keys. Keep your fingers on the keys the whole time.
+         Go as fast as you can while staying accurate. There are four practice trials first.</p>
+    </div>
+  </div>
+  <div class="progress"><i id="progBar"></i></div>
+
+  <div class="keymap" id="keymap"></div>
+  <p class="note" style="text-align:center;margin-top:12px">
+    On a phone or tablet, tap the buttons instead of using the keyboard.</p>
+
+  <div class="results" id="results">
+    <h3 style="font-family:var(--serif);font-size:22px;margin:32px 0 14px">Your data</h3>
+    <div class="stats">
+      <div class="stat"><div class="v num" id="rtCon">—</div><div class="k">Congruent, mean correct RT</div></div>
+      <div class="stat"><div class="v num" id="rtInc">—</div><div class="k">Incongruent, mean correct RT</div></div>
+      <div class="stat hero"><div class="v num" id="rtEff">—</div><div class="k">Your Stroop effect</div></div>
+    </div>
+
+    <div class="bench" style="grid-template-columns:1fr 300px">
+      <div>
+        <div class="bars">
+          <div class="bar"><span id="bCon">—</span><i id="barCon" style="height:0"></i></div>
+          <div class="bar inc"><span id="bInc">—</span><i id="barInc" style="height:0"></i></div>
+        </div>
+        <div class="barlabs"><div>Congruent</div><div>Incongruent</div></div>
+      </div>
+      <div class="panel">
+        <h3>Accuracy</h3>
+        <table>
+          <tr><th>Condition</th><th style="text-align:right">Correct</th></tr>
+          <tr><td>Congruent</td><td class="n" style="text-align:right" id="accCon">—</td></tr>
+          <tr><td>Incongruent</td><td class="n" style="text-align:right" id="accInc">—</td></tr>
+        </table>
+        <p class="note" style="margin-top:14px" id="tradeoff"></p>
+      </div>
+    </div>
+
+    <div class="row" style="margin:26px 0 14px">
+      <button class="btn" id="csvBtn">Download your data as CSV</button>
+      <button class="btn ghost" id="againBtn">Run it again</button>
+    </div>
+    <div class="scroll">
+      <table id="trialTable">
+        <thead><tr><th>#</th><th>Word</th><th>Ink</th><th>Condition</th>
+          <th>Response</th><th>Correct</th><th style="text-align:right">RT (ms)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <b>One honest caveat.</b> A browser cannot time as precisely as PsychoPy, which
+      synchronises with the monitor's refresh. Your numbers here are good enough to see the
+      effect, not to publish. That gap is the reason we use dedicated software from Week 3.
+    </div>
+  </div>
+</section>
+
+<!-- ============ MODULE 3 ============ -->
+<section class="tab" id="sim" role="tabpanel" tabindex="0">
+  <h2>Why so many trials?</h2>
+  <p class="lede">A single reaction time is mostly noise. Set a true effect, then see what
+    your experiment would have reported — once, and then twenty times over.</p>
+
+  <div class="simgrid">
+    <div class="panel">
+      <div class="ctrl">
+        <label><span>True effect</span><span class="num" id="teV">40 ms</span></label>
+        <input type="range" id="teR" min="0" max="120" step="5" value="40">
+      </div>
+      <div class="ctrl">
+        <label><span>Trial-to-trial noise (SD)</span><span class="num" id="sdV">150 ms</span></label>
+        <input type="range" id="sdR" min="40" max="300" step="10" value="150">
+      </div>
+      <div class="ctrl">
+        <label><span>Trials per condition</span><span class="num" id="ntV">10</span></label>
+        <input type="range" id="ntR" min="2" max="200" step="2" value="10">
+      </div>
+      <div class="row" style="margin-top:18px">
+        <button class="btn" id="simOne">Run once</button>
+        <button class="btn ghost" id="simMany">Run 20 times</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="strip" id="strip">
+        <div class="zero" id="zeroLine"></div>
+        <div class="truth" id="truthLine"></div>
+        <div class="axis" id="axis"></div>
+      </div>
+      <p class="verdict" id="verdict">Each dot is one whole experiment. The orange line is the
+        true effect; the grey line is zero.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>What to take away.</b> With few trials, the same true effect can come back as anything
+    from strongly negative to double its real size. Nothing about the mind changed between those
+    runs — only the sample. This is what you are buying when you run 100 trials instead of 10.
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+/* ============ tabs ============ */
+const tabs = document.querySelectorAll('nav button');
+tabs.forEach(b=>b.addEventListener('click',()=>{
+  tabs.forEach(x=>x.setAttribute('aria-selected', x===b));
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('on', s.id===b.dataset.tab));
+}));
+
+/* ============ MODULE 1 : trial anatomy ============ */
+const COLS = {red:'var(--red)',green:'var(--green)',blue:'var(--blue)',yellow:'var(--yellow)'};
+const aField=document.getElementById('animField'), stageName=document.getElementById('stageName'),
+      stageMs=document.getElementById('stageMs'), tl=document.getElementById('timeline');
+const R={fix:document.getElementById('fixR'),stim:document.getElementById('stimR'),iti:document.getElementById('itiR')};
+const V={fix:document.getElementById('fixV'),stim:document.getElementById('stimV'),iti:document.getElementById('itiV')};
+let animTimer=null, looping=false;
+
+function durs(){return {fix:+R.fix.value, stim:+R.stim.value, iti:+R.iti.value};}
+function drawTimeline(active){
+  const d=durs(), total=d.fix+d.stim+d.iti;
+  const segs=[['Fixation',d.fix,'#4A5568'],['Stimulus',d.stim,'var(--deep)'],
+              ['Blank',d.iti,'#4A5568']];
+  tl.innerHTML='';
+  segs.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.style.width=(s[1]/total*100)+'%'; el.style.background=s[2];
+    el.textContent = (s[1]/total>0.14)? s[0] : '';
+    if(i===active || active===-1) el.classList.add('act');
+    tl.appendChild(el);
+  });
+}
+['fix','stim','iti'].forEach(k=>R[k].addEventListener('input',()=>{
+  V[k].textContent=R[k].value+' ms'; drawTimeline(-1);
+}));
+
+function playTrial(){
+  clearTimeout(animTimer);
+  const d=durs();
+  aField.style.color='#fff';
+  aField.textContent='+'; stageName.textContent='Fixation'; stageMs.textContent=d.fix+' ms';
+  drawTimeline(0);
+  animTimer=setTimeout(()=>{
+    aField.textContent='RED'; aField.style.color=COLS.blue;
+    stageName.textContent='Stimulus'; stageMs.textContent=d.stim+' ms'; drawTimeline(1);
+    animTimer=setTimeout(()=>{
+      aField.textContent='✓'; aField.style.color='#fff';
+      stageName.textContent='Response recorded'; stageMs.textContent='RT logged'; drawTimeline(1);
+      animTimer=setTimeout(()=>{
+        aField.textContent='.'; aField.style.color='transparent';
+        stageName.textContent='Blank'; stageMs.textContent=d.iti+' ms'; drawTimeline(2);
+        animTimer=setTimeout(()=>{
+          aField.style.color='#fff';
+          if(looping) playTrial();
+          else { aField.textContent='+'; stageName.textContent='Ready'; stageMs.textContent='—'; drawTimeline(-1);}
+        }, d.iti);
+      }, 420);
+    }, d.stim);
+  }, d.fix);
+}
+document.getElementById('playBtn').addEventListener('click',()=>{looping=false;playTrial();});
+document.getElementById('loopBtn').addEventListener('click',e=>{
+  looping=!looping; e.target.textContent = looping?'Stop':'Loop';
+  if(looping) playTrial(); else clearTimeout(animTimer);
+});
+drawTimeline(-1);
+
+/* ============ MODULE 2 : Stroop ============ */
+const WORDS={
+  tr:{red:'KIRMIZI',green:'YEŞİL',blue:'MAVİ',yellow:'SARI'},
+  en:{red:'RED',green:'GREEN',blue:'BLUE',yellow:'YELLOW'}
+};
+const KEYS={d:'red',f:'green',j:'blue',k:'yellow'};
+const NAMES={red:'Red',green:'Green',blue:'Blue',yellow:'Yellow'};
+const tf=document.getElementById('taskField'), prog=document.getElementById('progBar'),
+      resBox=document.getElementById('results'), km=document.getElementById('keymap');
+let trials=[], idx=0, phase='idle', data=[], onset=0, acceptInput=false, tTimer=null;
+
+// key legend
+Object.entries(KEYS).forEach(([k,c])=>{
+  const b=document.createElement('button');
+  b.className='key'; b.type='button';
+  b.innerHTML='<kbd>'+k.toUpperCase()+'</kbd><span class="swatch" style="background:'+COLS[c]+'"></span>'+NAMES[c];
+  b.addEventListener('click',()=>respond(c));
+  km.appendChild(b);
+});
+
+function buildTrials(n,lang){
+  const cols=Object.keys(COLS), out=[];
+  for(let i=0;i<n;i++){
+    const con = i < n/2;
+    const ink = cols[Math.floor(Math.random()*4)];
+    let word = ink;
+    if(!con){ do{ word=cols[Math.floor(Math.random()*4)]; } while(word===ink); }
+    out.push({word:WORDS[lang][word], wordKey:word, ink, cond: con?'congruent':'incongruent'});
+  }
+  for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}
+  return out;
+}
+function screenMsg(title, body, btnText, cb){
+  tf.innerHTML='';
+  const d=document.createElement('div'); d.className='msg';
+  d.innerHTML='<h4>'+title+'</h4><p>'+body+'</p>';
+  tf.appendChild(d);
+  if(btnText){
+    const b=document.createElement('button'); b.className='btn'; b.textContent=btnText;
+    b.style.marginTop='6px'; b.addEventListener('click',cb); tf.appendChild(b);
+  }
+}
+function startRun(){
+  const lang=document.getElementById('langSel').value;
+  const n=Math.max(8, Math.min(120, +document.getElementById('nTrials').value||32));
+  data=[]; resBox.classList.remove('on');
+  trials = buildTrials(4,lang).map(t=>(t.practice=true,t)).concat(buildTrials(n,lang));
+  idx=0; phase='practice';
+  screenMsg('Practice','Four trials to find the keys. Name the colour of the ink, not the word.',
+            'Begin', ()=>nextTrial());
+}
+function nextTrial(){
+  if(idx>=trials.length){ finish(); return; }
+  const t=trials[idx];
+  if(!t.practice && phase==='practice'){
+    phase='main';
+    screenMsg('Now the real block','No more feedback from here. Keep going as fast as you can without making mistakes.',
+              'Start block', ()=>{ phase='main'; runTrial(); });
+    return;
+  }
+  runTrial();
+}
+function runTrial(){
+  const t=trials[idx];
+  tf.innerHTML='<div class="fix">+</div>';
+  acceptInput=false;
+  tTimer=setTimeout(()=>{
+    tf.innerHTML='<div class="word" style="color:'+COLS[t.ink]+'">'+t.word+'</div>';
+    requestAnimationFrame(()=>{ onset=performance.now(); acceptInput=true; });
+  }, 500);
+  prog.style.width = (idx/trials.length*100)+'%';
+}
+function respond(colour){
+  if(!acceptInput) return;
+  acceptInput=false;
+  const rt=Math.round(performance.now()-onset), t=trials[idx];
+  const ok = colour===t.ink;
+  if(!t.practice) data.push({n:data.length+1, word:t.word, ink:t.ink, cond:t.cond,
+                             resp:colour, correct:ok?1:0, rt:rt});
+  if(t.practice){
+    tf.innerHTML='<div class="fb" style="color:'+(ok?'var(--green)':'var(--red)')+'">'+
+                 (ok?'Correct':'That was '+NAMES[t.ink])+'</div>';
+    tTimer=setTimeout(()=>{ idx++; nextTrial(); }, 750);
+  } else {
+    tf.innerHTML='';
+    tTimer=setTimeout(()=>{ idx++; nextTrial(); }, 600);
+  }
+}
+document.addEventListener('keydown',e=>{
+  const c=KEYS[e.key.toLowerCase()];
+  if(c && document.getElementById('stroop').classList.contains('on')){ e.preventDefault(); respond(c); }
+});
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function finish(){
+  prog.style.width='100%';
+  screenMsg('Done','Your results are below.','Clear screen',()=>{tf.innerHTML='<div class="msg"><p>Screen cleared.</p></div>';});
+  const con=data.filter(d=>d.cond==='congruent'), inc=data.filter(d=>d.cond==='incongruent');
+  const conOK=con.filter(d=>d.correct).map(d=>d.rt), incOK=inc.filter(d=>d.correct).map(d=>d.rt);
+  const mc=conOK.length?Math.round(mean(conOK)):0, mi=incOK.length?Math.round(mean(incOK)):0;
+  document.getElementById('rtCon').textContent = conOK.length? mc+' ms':'—';
+  document.getElementById('rtInc').textContent = incOK.length? mi+' ms':'—';
+  const eff=mi-mc;
+  document.getElementById('rtEff').textContent = (conOK.length&&incOK.length)?
+      (eff>0?'+':'')+eff+' ms':'—';
+  const top=Math.max(mc,mi)||1;
+  document.getElementById('barCon').style.height=(mc/top*100)+'%';
+  document.getElementById('barInc').style.height=(mi/top*100)+'%';
+  document.getElementById('bCon').textContent=mc+' ms';
+  document.getElementById('bInc').textContent=mi+' ms';
+  const ac=con.length?Math.round(con.filter(d=>d.correct).length/con.length*100):0;
+  const ai=inc.length?Math.round(inc.filter(d=>d.correct).length/inc.length*100):0;
+  document.getElementById('accCon').textContent=ac+'%';
+  document.getElementById('accInc').textContent=ai+'%';
+  const tr=document.getElementById('tradeoff');
+  if(eff>0 && ai<ac-5) tr.textContent='You were slower AND less accurate when the word conflicted — the effect shows in both measures.';
+  else if(eff<=0 && ai<ac-5) tr.textContent='Faster on incongruent trials but less accurate: that looks like a speed–accuracy trade-off, not faster processing.';
+  else if(eff>0) tr.textContent='Slower on incongruent trials with accuracy holding steady — the cleanest version of the effect.';
+  else tr.textContent='No slowing this time. With this few trials that happens; see the third tab.';
+  const tb=document.querySelector('#trialTable tbody'); tb.innerHTML='';
+  data.forEach(d=>{
+    const r=document.createElement('tr');
+    r.innerHTML='<td class="n">'+d.n+'</td><td>'+d.word+'</td><td>'+NAMES[d.ink]+'</td><td>'+
+      d.cond+'</td><td>'+NAMES[d.resp]+'</td><td>'+(d.correct?'1':'0')+
+      '</td><td class="n" style="text-align:right">'+d.rt+'</td>';
+    tb.appendChild(r);
+  });
+  resBox.classList.add('on');
+  resBox.scrollIntoView({behavior:'smooth',block:'start'});
+}
+document.getElementById('startBtn').addEventListener('click',startRun);
+document.getElementById('againBtn').addEventListener('click',()=>{
+  resBox.classList.remove('on'); window.scrollTo({top:0,behavior:'smooth'}); startRun();
+});
+document.getElementById('csvBtn').addEventListener('click',()=>{
+  const head='trial,word,ink_colour,condition,response,correct,rt_ms\n';
+  const body=data.map(d=>[d.n,d.word,d.ink,d.cond,d.resp,d.correct,d.rt].join(',')).join('\n');
+  const url=URL.createObjectURL(new Blob(['\ufeff'+head+body],{type:'text/csv;charset=utf-8'}));
+  const a=document.createElement('a'); a.href=url; a.download='stroop_data.csv'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* ============ MODULE 3 : simulator ============ */
+const S={te:document.getElementById('teR'),sd:document.getElementById('sdR'),nt:document.getElementById('ntR')};
+const SV={te:document.getElementById('teV'),sd:document.getElementById('sdV'),nt:document.getElementById('ntV')};
+const strip=document.getElementById('strip'), verdict=document.getElementById('verdict');
+const RANGE=200; // ms shown either side of zero
+['te','sd','nt'].forEach(k=>S[k].addEventListener('input',()=>{
+  SV[k].textContent=S[k].value+(k==='nt'?'':' ms'); placeLines();
+}));
+function gauss(){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function xPct(ms){ return ((ms+RANGE)/(2*RANGE))*100; }
+function placeLines(){
+  document.getElementById('zeroLine').style.left=xPct(0)+'%';
+  document.getElementById('truthLine').style.left=xPct(+S.te.value)+'%';
+  const ax=document.getElementById('axis'); ax.innerHTML='';
+  [-200,-100,0,100,200].forEach(v=>{
+    const s=document.createElement('span'); s.style.left=xPct(v)+'%'; s.textContent=v; ax.appendChild(s);
+  });
+}
+function oneExperiment(){
+  const te=+S.te.value, sd=+S.sd.value, n=+S.nt.value;
+  let a=0,b=0;
+  for(let i=0;i<n;i++){ a+=700+gauss()*sd; b+=700+te+gauss()*sd; }
+  return (b/n)-(a/n);
+}
+function drawDots(vals){
+  strip.querySelectorAll('.dot').forEach(d=>d.remove());
+  vals.forEach((v,i)=>{
+    const d=document.createElement('div'); d.className='dot';
+    d.style.left=Math.max(1,Math.min(99,xPct(v)))+'%';
+    d.style.top=(26+((i*17)%92))+'px';
+    strip.appendChild(d);
+  });
+}
+document.getElementById('simOne').addEventListener('click',()=>{
+  const v=oneExperiment(); drawDots([v]);
+  const te=+S.te.value;
+  verdict.innerHTML='This experiment reported <b>'+(v>0?'+':'')+Math.round(v)+' ms</b>. '+
+    'The truth was <b>'+te+' ms</b>.'+(Math.abs(v-te)>te*0.5&&te>0?' Quite far off.':'');
+});
+document.getElementById('simMany').addEventListener('click',()=>{
+  const vals=[]; for(let i=0;i<20;i++) vals.push(oneExperiment());
+  drawDots(vals);
+  const te=+S.te.value, wrongSign=vals.filter(v=>v<=0).length;
+  const lo=Math.round(Math.min(...vals)), hi=Math.round(Math.max(...vals));
+  verdict.innerHTML='Twenty runs of the same experiment landed between <b>'+lo+
+    '</b> and <b>'+hi+' ms</b>.'+
+    (te>0? ' '+wrongSign+' of 20 found no effect at all or one in the wrong direction.':'');
+});
+placeLines();
+</script>
+</body>
+</html>
