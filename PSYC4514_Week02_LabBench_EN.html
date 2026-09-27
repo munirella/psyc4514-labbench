@@ -133,6 +133,13 @@
     border-radius:6px;background:var(--page);color:var(--ink);width:100%}
   .fac select{width:100%}
   .fac.off input,.fac.off select{opacity:.4}
+  .ix{display:flex;gap:9px;align-items:flex-start;font-size:13px;margin:4px 0 6px;cursor:pointer;padding:9px 11px;border:1px dashed var(--line);border-radius:6px}
+  .ix input{margin-top:3px;flex:none}
+  .ix.off{opacity:.45;cursor:default}
+  .hint{font-size:11.5px;color:var(--grey);margin-top:-2px}
+  .perc{font-size:12px;color:var(--grey);margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+  .perc:empty{display:none}
+  .perc b{color:var(--ink);font-family:var(--mono)}
   .faclab{font-size:11px;color:var(--grey);margin-bottom:4px;display:flex;justify-content:space-between}
   .gauges{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
   @media(max-width:720px){.gauges{grid-template-columns:1fr}}
@@ -299,14 +306,15 @@
       <h3>Your factors</h3>
       <div class="faclab"><span>Factor 1 — your manipulation</span><span>levels</span></div>
       <div class="fac"><input type="text" id="f0n" value="congruency"><select id="f0l"></select></div>
-      <div class="faclab"><span>Factor 2 — something else you vary</span><span>levels</span></div>
+      <div class="faclab"><span>Factor 2 — something you balance or add</span><span>levels</span></div>
       <div class="fac"><input type="text" id="f1n" value="ink color"><select id="f1l"></select></div>
       <div class="faclab"><span>Factor 3 — optional</span><span>levels</span></div>
       <div class="fac"><input type="text" id="f2n" value=""><select id="f2l"></select></div>
+      <label class="ix" id="ixWrap"><input type="checkbox" id="ixC"> <span>My question is an interaction: does factor 2 change the effect of factor 1?</span></label>
 
       <div class="ctrl" style="margin-top:18px">
         <label>Repetitions of the file <span class="num" id="repV2">8</span></label>
-        <input type="range" id="repR2" min="1" max="20" step="1" value="8">
+        <input type="range" id="repR2" min="1" max="40" step="1" value="8">
       </div>
       <div class="ctrl">
         <label>Seconds per trial <span class="num" id="sptV">2.5</span></label>
@@ -339,6 +347,7 @@
           <div class="k" id="perK">trials per level of factor 1</div>
           <div class="meter" id="perMeter"><i></i><span class="limit"></span></div>
           <div class="t" id="perT"></div>
+          <div class="perc" id="perC"></div>
         </div>
       </div>
 
@@ -674,6 +683,7 @@ renderQ();
   sel.addEventListener('change', budget);
 });
 ['f0n', 'f1n', 'f2n'].forEach(id => $(id).addEventListener('input', budget));
+$('ixC').addEventListener('change', budget);
 const BR = { rep: $('repR2'), spt: $('sptR'), prac: $('pracR'), ov: $('ovR'), lim: $('limR') };
 Object.values(BR).forEach(r => r.addEventListener('input', budget));
 
@@ -714,17 +724,36 @@ function budget() {
     : mmss(lim - dur) + ' to spare.';
 
   // trials gauge
-  const thin = perLevel < 30;
-  $('perV').textContent = perLevel;
-  $('perK').textContent = 'trials per level of ' + (facs.length ? facs[0].name : 'factor 1');
+  const l0 = +$('f0l').value, l1 = +$('f1l').value;
+  const n0 = ($('f0n').value || 'factor 1').trim(), n1 = ($('f1n').value || 'factor 2').trim();
+  const cells = l1 > 1 ? l0 * l1 : l0;
+  const perCell = Math.round(main / cells);
+  const ixC = $('ixC');
+  ixC.disabled = l1 === 1;
+  if (l1 === 1) ixC.checked = false;
+  $('ixWrap').classList.toggle('off', l1 === 1);
+  const ix = ixC.checked;
+  const shown = ix ? perCell : perLevel;
+  const thin = shown < 30;
+  $('perV').textContent = shown;
+  $('perK').textContent = ix
+    ? 'trials per ' + n0 + ' × ' + n1 + ' cell'
+    : 'trials per level of ' + n0;
   $('gTrials').className = 'gauge ' + (thin ? 'bad' : 'ok');
   const m2 = $('perMeter');
   m2.classList.toggle('bad', thin);
-  m2.querySelector('i').style.width = Math.min(100, perLevel / 84 * 100) + '%';
+  m2.querySelector('i').style.width = Math.min(100, shown / 84 * 100) + '%';
   m2.querySelector('.limit').style.left = (30 / 84 * 100) + '%';
-  $('perT').textContent = thin
-    ? 'Thin. Below about 30 the estimate starts to wobble — see Week 1, third tab.'
-    : 'Comfortable for an effect of a few tens of milliseconds.';
+  $('perT').textContent = ix
+    ? (thin
+      ? 'Thin. An interaction needs a separate mean in every cell. This tool’s rough yardstick: below about 30 the cell means start to move noticeably. What you actually need depends on the size of the effect. Raise the repetitions or cut the levels of factor 2 — and watch the time.'
+      : 'Enough per cell by this tool’s rough yardstick. What you actually need depends on the size of the effect; interactions are usually smaller than main effects, so allow for that in your discussion.')
+    : (thin
+      ? 'Thin. This tool’s rough yardstick: below about 30 the mean starts to move noticeably. What you actually need depends on the size of the effect — see Week 1, third tab.'
+      : 'Enough by this tool’s rough yardstick. What you actually need depends on the size of the effect: a strong effect shows with few trials, a small one needs many more.');
+  $('perC').innerHTML = (l1 > 1 && !ix)
+    ? 'Per ' + n0 + ' × ' + n1 + ' cell: <b>' + perCell + '</b>. If factor 2 is only something you balance (like ink color), a low number here is fine. If your question is about factor 2, tick the box above.'
+    : '';
 
   // conditions table
   const thead = $('condTable').querySelector('thead');
