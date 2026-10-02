@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Week 3 Lab Bench — Building Cognitive Experiments</title>
+<style>
+  :root{
+    --deep:#065A82; --teal:#1C7293; --mid:#21295C; --ink:#16203D;
+    --amber:#D98A1F; --amber-soft:#FDF3E3;
+    --grey:#5B6478; --line:#D5DCE6; --panel:#EEF3F8; --page:#FFFFFF;
+    --field:#141414;
+    --red:#E23B3B; --green:#2FA84F; --blue:#3B72E2; --yellow:#E3B21A;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --serif:Georgia,Cambria,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--page);
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 72px}
+
+  header.top{border-bottom:1px solid var(--line);background:var(--page);
+    position:sticky;top:0;z-index:20}
+  .top-inner{max-width:1080px;margin:0 auto;padding:18px 24px 0;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:baseline;justify-content:space-between}
+  h1{font-family:var(--serif);font-size:22px;font-weight:700;margin:0;letter-spacing:-.2px}
+  .course{font-size:13px;color:var(--grey);font-variant-numeric:tabular-nums}
+  nav{max-width:1080px;margin:0 auto;padding:14px 24px 0;display:flex;gap:2px;flex-wrap:wrap}
+  nav button{font:inherit;font-size:14px;border:1px solid transparent;border-bottom:none;
+    background:none;color:var(--grey);padding:9px 16px;cursor:pointer;
+    border-radius:6px 6px 0 0;margin-bottom:-1px}
+  nav button:hover{color:var(--ink);background:var(--panel)}
+  nav button[aria-selected="true"]{background:var(--page);border-color:var(--line);
+    color:var(--ink);font-weight:600}
+  nav button:focus-visible{outline:2px solid var(--teal);outline-offset:-2px}
+
+  section.tab{display:none;padding-top:32px}
+  section.tab.on{display:block}
+  h2{font-family:var(--serif);font-size:26px;margin:0 0 6px;font-weight:700}
+  .lede{color:var(--grey);max-width:68ch;margin:0 0 24px;font-size:15px}
+  h3{font-size:14px;margin:0 0 9px;font-weight:600;color:var(--grey);
+    text-transform:uppercase;letter-spacing:.06em}
+  .note{font-size:13px;color:var(--grey)}
+  .btn{font:inherit;font-size:14px;font-weight:600;border-radius:6px;cursor:pointer;
+    padding:9px 16px;border:1px solid var(--deep);background:var(--deep);color:#fff}
+  .btn:hover{background:#054d70}
+  .btn.ghost{background:transparent;color:var(--deep)}
+  .btn.ghost:hover{background:var(--panel)}
+  .btn:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;gap:14px}
+  .ctrl input[type=range]{width:100%;accent-color:var(--teal)}
+  .callout{background:var(--amber-soft);border:1px solid #F0D6A8;border-radius:8px;
+    padding:16px 18px;font-size:14px;color:#6B4708;margin-top:26px}
+  .callout b{color:#8A5A10}
+  select{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);
+    border-radius:6px;background:var(--page);color:var(--ink)}
+  .modes{display:flex;gap:6px;flex-wrap:wrap}
+  .modes button{font:inherit;font-size:13.5px;padding:8px 13px;border-radius:6px;
+    border:1px solid var(--line);background:var(--page);color:var(--grey);cursor:pointer}
+  .modes button:hover{border-color:var(--teal);color:var(--ink)}
+  .modes button[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);
+    color:#fff;font-weight:600}
+
+  /* ---------- module 1 : linked views ---------- */
+  .bar{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;
+    padding:16px 18px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;margin-bottom:22px}
+  .bar .ctrl{min-width:210px}
+  .linked{display:grid;grid-template-columns:400px 1fr;gap:22px;align-items:start}
+  @media(max-width:900px){.linked{grid-template-columns:1fr}}
+  table.cond{border-collapse:collapse;width:100%;font-size:13px}
+  table.cond th{text-align:left;padding:7px 9px;font-size:11px;font-weight:600;
+    color:var(--grey);text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--line)}
+  table.cond td{padding:0;border-bottom:1px solid var(--line)}
+  table.cond tr{cursor:pointer}
+  table.cond tbody tr:hover td>span{background:#F4F7FA}
+  table.cond td>span{display:block;padding:9px}
+  table.cond tr.sel td>span{background:#DCEAF2}
+  table.cond tr.sel td:first-child>span{box-shadow:inset 3px 0 0 var(--deep)}
+  td.rn{font-family:var(--mono);color:var(--deep);font-weight:700;width:36px}
+  td.wd{font-weight:700;letter-spacing:.4px}
+  td.cd{color:var(--grey);font-size:12px}
+
+  .screen{background:var(--field);border-radius:8px;height:186px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:54px;font-weight:700;letter-spacing:1px;user-select:none}
+  .screen .fixmark{color:#fff;font-size:44px}
+  .scap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    font-size:13px;color:var(--grey);margin-top:9px}
+  .scap b{color:var(--ink);font-family:var(--mono)}
+
+  .seq{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .tr{width:34px;height:34px;border-radius:5px;border:1px solid var(--line);
+    background:var(--page);font-family:var(--mono);font-size:12px;color:var(--grey);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    transition:background .12s,border-color .12s}
+  .tr:hover{border-color:var(--teal)}
+  .tr.hit{background:var(--deep);border-color:var(--deep);color:#fff;font-weight:700}
+  .tr.now{outline:3px solid var(--amber);outline-offset:1px}
+  .tr.brk{width:9px;min-width:9px;border:none;border-left:2px dashed var(--line);
+    background:none;cursor:default;border-radius:0}
+  .tr.brk:hover{border-color:var(--line)}
+
+  /* ---------- module 2 : frame clock ---------- */
+  .fgrid{display:flex;gap:2px;margin-top:8px;position:relative;height:56px}
+  .fgrid.dense .fc{font-size:0}
+  .fc{flex:1;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:3px;background:#F7F9FB;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:10.5px;color:#A6B0BD}
+  .fc.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .fc.edge{background:#EEF3F8;border-color:var(--teal);border-style:dashed;color:var(--teal)}
+  .ask{position:absolute;top:-10px;bottom:-10px;width:2.5px;background:var(--amber);
+    border-radius:2px}
+  .outs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 0}
+  @media(max-width:720px){.outs{grid-template-columns:1fr}}
+  .out{border:1px solid var(--line);border-radius:8px;padding:15px}
+  .out.hit{border-color:#BBDCC4;background:#F2FAF4}
+  .out .v{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--deep);
+    line-height:1.15;font-variant-numeric:tabular-nums}
+  .out.hit .v{color:#1F7A3D}
+  .out .k{font-size:12.5px;color:var(--grey);margin-top:3px}
+  .safe{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .sd{font-family:var(--mono);font-size:12px;padding:5px 9px;border-radius:5px;
+    border:1px solid #BBDCC4;background:#F2FAF4;color:#1F7A3D}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <h1>Week 3 Lab Bench</h1>
+    <div class="course">PSYC&nbsp;4514 · Building Cognitive Experiments</div>
+  </div>
+  <nav>
+    <button data-tab="linked" aria-selected="true">From the file to the screen</button>
+    <button data-tab="frames" aria-selected="false">The frame clock</button>
+  </nav>
+</header>
+
+<div class="wrap">
+
+<!-- ============================ MODULE 1 ============================ -->
+<section class="tab on" id="linked">
+  <h2>From the file to the screen</h2>
+  <p class="lede">Three views of the same experiment: the spreadsheet you wrote, the order the trials
+  actually run in, and what the participant sees. Click anything in one view and watch where it lands
+  in the others.</p>
+
+  <div class="bar">
+    <div class="ctrl">
+      <label>Repetitions of the file <span class="num" id="repV">3</span></label>
+      <input type="range" id="repR" min="1" max="6" step="1" value="3">
+    </div>
+    <div>
+      <label style="display:block;font-size:13px;color:var(--grey);margin-bottom:5px">Loop order</label>
+      <div class="modes">
+        <button data-mode="sequential" aria-pressed="true">sequential</button>
+        <button data-mode="random" aria-pressed="false">random</button>
+        <button data-mode="full" aria-pressed="false">full random</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn" id="playBtn">Run it</button>
+      <button class="btn ghost" id="stopBtn">Stop</button>
+    </div>
+  </div>
+
+  <div class="linked">
+    <div>
+      <h3>The conditions file</h3>
+      <table class="cond" id="condT">
+        <thead><tr><th></th><th>word</th><th>ink</th><th>condition</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="note" style="margin-top:10px">Six rows. Each one is a kind of trial you want to show,
+      not a trial itself.</p>
+    </div>
+
+    <div>
+      <h3>What the participant sees</h3>
+      <div class="screen" id="screen"><span class="fixmark">+</span></div>
+      <div class="scap">
+        <span id="capL">Press <b>Run it</b>, or click any trial below.</span>
+        <span id="capR"></span>
+      </div>
+
+      <h3 style="margin-top:24px">The order the trials run in</h3>
+      <div class="seq" id="seq"></div>
+      <p class="note" style="margin-top:10px" id="seqNote"></p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>A row is not a trial.</b> The file says what kinds of trial exist; the loop decides how many times
+    each kind runs and in what order. Every column you add to the file shows up as a column in your data,
+    which is how you get the condition labels back out at analysis time.
+  </div>
+</section>
+
+<!-- ============================ MODULE 2 ============================ -->
+<section class="tab" id="frames">
+  <h2>The frame clock</h2>
+  <p class="lede">You can only turn a stimulus on or off when the screen updates. Ask for a duration
+  and see whether it lands on an update — or gets rounded to one.</p>
+
+  <div class="bar">
+    <div class="ctrl" style="min-width:300px">
+      <label>Duration you asked for <span class="num" id="durV">220 ms</span></label>
+      <input type="range" id="durR" min="10" max="500" step="5" value="220">
+    </div>
+    <div>
+      <label style="display:block;font-size:13px;color:var(--grey);margin-bottom:5px">Screen refresh rate</label>
+      <select id="hzSel">
+        <option value="60" selected>60 Hz — most flat panels</option>
+        <option value="120">120 Hz</option>
+        <option value="144">144 Hz — gaming monitor</option>
+      </select>
+    </div>
+  </div>
+
+  <h3>One frame at a time</h3>
+  <div class="fgrid" id="fgrid"></div>
+  <p class="note" style="margin-top:10px" id="fNote"></p>
+
+  <div class="outs">
+    <div class="out" id="oAsk"><div class="v" id="askV">—</div><div class="k">frames that would be needed</div></div>
+    <div class="out" id="oLo"><div class="v" id="loV">—</div><div class="k" id="loK">rounded down</div></div>
+    <div class="out" id="oHi"><div class="v" id="hiV">—</div><div class="k" id="hiK">rounded up</div></div>
+  </div>
+
+  <h3 style="margin-top:26px">Durations that always land exactly</h3>
+  <div class="safe" id="safeList"></div>
+
+  <div class="callout">
+    <b>This is why 220 ms is not a duration.</b> Pick from the safe list, or accept that you are really
+    asking for the nearest one. It matters less than you might think for a single stimulus — but it matters
+    a great deal when you report what you presented, and when someone tries to replicate it.
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const tabs = document.querySelectorAll('nav button');
+tabs.forEach(b => b.addEventListener('click', () => {
+  tabs.forEach(x => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === b.dataset.tab));
+}));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+const L = {
+  note: (mode, reps, uneven) => mode === 'full'
+    ? (reps === 1 ? 'With one repetition, full random and random are the same thing. Raise the repetitions to see the difference.'
+      : 'Every row still runs exactly ' + reps + ' times in total. But all the trials went into one bag and were shuffled once, so the dashed lines now just mark every six trials: <b>' + uneven + '</b> of ' + reps + ' blocks have a row twice and another not at all. A condition can bunch up at the start or the end of the task.')
+    : 'Every row runs exactly ' + reps + ' time' + (reps > 1 ? 's' : '') +
+      (mode === 'random' ? ' — reshuffled within each repetition, but never more or less than once per pass.' : ' — top to bottom, the same way every repetition.'),
+  inInk: (w, ink) => w + ' in ' + ink,
+  trialOf: (n, tot, row) => 'trial <b>' + n + '</b> of <b>' + tot + '</b> · from row <b>' + row + '</b>',
+  capR: (w, ink, cond) => w + ' in ' + ink + ' ink · <b>' + cond + '</b>',
+  idle: 'Press <b>Run it</b>, or click any trial below.',
+  frame: n => n + ' frame' + (n === 1 ? '' : 's'),
+  exact: (d, f, hz) => '<b>' + d + ' ms is exactly ' + f + ' frames at ' + hz + ' Hz.</b> The stimulus turns off on a screen update, which is the only moment it can.',
+  inexact: (d, f, lo, hi) => '<b>' + d + ' ms would need ' + f + ' frames.</b> The orange line falls inside a frame, and a frame cannot be cut in half — so you get ' + lo + ' ms or ' + hi + ' ms, nothing between.',
+  none: (hz, step) => 'At ' + hz + ' Hz no whole number of milliseconds lands exactly on a frame — one frame is ' + step + ' ms. Work in frames instead.',
+  dec: x => x,
+};
+
+/* ============ MODULE 1 : linked views ============ */
+const INKS = { red: 'var(--red)', green: 'var(--green)', blue: 'var(--blue)' };
+const ROWS = [
+  { word: 'RED',   ink: 'red',   cond: 'congruent' },
+  { word: 'RED',   ink: 'blue',  cond: 'incongruent' },
+  { word: 'GREEN', ink: 'green', cond: 'congruent' },
+  { word: 'GREEN', ink: 'red',   cond: 'incongruent' },
+  { word: 'BLUE',  ink: 'blue',  cond: 'congruent' },
+  { word: 'BLUE',  ink: 'green', cond: 'incongruent' },
+];
+let mode = 'sequential', sel = null, order = [], playing = null;
+
+function buildOrder() {
+  const reps = +$('repR').value, n = ROWS.length;
+  let seq = [];
+  if (mode === 'full') {
+    for (let r = 0; r < reps; r++) for (let i = 0; i < n; i++) seq.push(i);
+    shuffle(seq);                                   // one bag, shuffled once (PsychoPy fullRandom)
+  } else {
+    for (let r = 0; r < reps; r++)
+      seq.push(...(mode === 'random' ? shuffle(ROWS.map((_, i) => i)) : ROWS.map((_, i) => i)));
+  }
+  const out = [];
+  seq.forEach((v, k) => { if (k > 0 && k % n === 0) out.push(null); out.push(v); });
+  return out;
+}
+
+function drawTable() {
+  const tb = $('condT').querySelector('tbody');
+  tb.innerHTML = '';
+  ROWS.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.dataset.row = i;
+    tr.innerHTML =
+      '<td class="rn"><span>' + (i + 1) + '</span></td>' +
+      '<td class="wd"><span>' + r.word + '</span></td>' +
+      '<td><span style="color:' + INKS[r.ink] + ';font-weight:700">' + r.ink + '</span></td>' +
+      '<td class="cd"><span>' + r.cond + '</span></td>';
+    tr.addEventListener('click', () => { select(i); showTrial(order.indexOf(i)); });
+    tb.appendChild(tr);
+  });
+}
+
+function drawSeq() {
+  const s = $('seq');
+  s.innerHTML = '';
+  order.forEach((ri, pos) => {
+    const d = document.createElement('div');
+    if (ri === null) { d.className = 'tr brk'; s.appendChild(d); return; }
+    d.className = 'tr';
+    d.dataset.pos = pos;
+    d.textContent = ri + 1;
+    d.title = L.inInk(ROWS[ri].word, ROWS[ri].ink);
+    d.addEventListener('click', () => { select(ri); showTrial(pos); });
+    s.appendChild(d);
+  });
+  const reps = +$('repR').value, n = ROWS.length;
+  const flat = order.filter(x => x !== null);
+  let uneven = 0;
+  for (let b = 0; b < reps; b++) {
+    const blk = flat.slice(b * n, b * n + n);
+    if (ROWS.some((_, i) => blk.filter(x => x === i).length !== 1)) uneven++;
+  }
+  $('seqNote').innerHTML = L.note(mode, reps, uneven);
+}
+
+function select(ri) {
+  sel = ri;
+  document.querySelectorAll('#condT tbody tr').forEach(tr =>
+    tr.classList.toggle('sel', +tr.dataset.row === ri));
+  document.querySelectorAll('#seq .tr').forEach(d => {
+    if (d.classList.contains('brk')) return;
+    d.classList.toggle('hit', order[+d.dataset.pos] === ri);
+  });
+}
+
+function showTrial(pos) {
+  if (pos < 0 || order[pos] == null) return;
+  const ri = order[pos], r = ROWS[ri];
+  $('screen').innerHTML = '<span style="color:' + INKS[r.ink] + '">' + r.word + '</span>';
+  const n = order.slice(0, pos + 1).filter(x => x !== null).length;
+  const tot = order.filter(x => x !== null).length;
+  $('capL').innerHTML = L.trialOf(n, tot, ri + 1);
+  $('capR').innerHTML = L.capR(r.word, r.ink, r.cond);
+  document.querySelectorAll('#seq .tr').forEach(d =>
+    d.classList.toggle('now', +d.dataset.pos === pos));
+}
+
+function rebuild() {
+  order = buildOrder();
+  drawSeq();
+  if (sel !== null) select(sel);
+  $('screen').innerHTML = '<span class="fixmark">+</span>';
+  $('capL').innerHTML = L.idle;
+  $('capR').textContent = '';
+}
+
+$('repR').addEventListener('input', () => { $('repV').textContent = $('repR').value; rebuild(); });
+document.querySelectorAll('#linked .modes button').forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('#linked .modes button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  rebuild();
+}));
+$('playBtn').addEventListener('click', () => {
+  clearInterval(playing);
+  let pos = -1;
+  playing = setInterval(() => {
+    do { pos++; } while (pos < order.length && order[pos] === null);
+    if (pos >= order.length) { clearInterval(playing); playing = null; return; }
+    select(order[pos]);
+    showTrial(pos);
+  }, 700);
+});
+$('stopBtn').addEventListener('click', () => { clearInterval(playing); playing = null; });
+
+drawTable();
+rebuild();
+
+/* ============ MODULE 2 : frame clock ============ */
+const D = $('durR'), HZ = $('hzSel');
+function frames() {
+  const d = +D.value, hz = +HZ.value;
+  const exactF = d * hz / 1000;
+  const lo = Math.floor(exactF), hi = Math.ceil(exactF);
+  const ms = n => n / hz * 1000;
+  const isExact = Math.abs(exactF - Math.round(exactF)) < 1e-6;
+
+  $('durV').textContent = d + ' ms';
+  $('askV').textContent = L.dec(exactF.toFixed(exactF % 1 ? 2 : 0));
+  $('loV').textContent = L.dec(ms(lo).toFixed(1)) + ' ms';
+  $('hiV').textContent = L.dec(ms(hi).toFixed(1)) + ' ms';
+  $('loK').textContent = L.frame(lo);
+  $('hiK').textContent = L.frame(hi);
+  $('oAsk').className = 'out' + (isExact ? ' hit' : '');
+  $('oLo').className = 'out' + (isExact ? ' hit' : '');
+  $('oHi').className = 'out' + (isExact ? ' hit' : '');
+
+  const total = Math.max(hi + 2, 6);
+  const g = $('fgrid');
+  g.innerHTML = '';
+  g.classList.toggle('dense', total > Math.floor(g.clientWidth / 22));
+  for (let i = 1; i <= total; i++) {
+    const c = document.createElement('div');
+    c.className = 'fc' + (i <= lo ? ' on' : (i === hi && !isExact ? ' edge' : ''));
+    c.textContent = i;
+    g.appendChild(c);
+  }
+  const mark = document.createElement('span');
+  mark.className = 'ask';
+  mark.style.left = (exactF / total * 100) + '%';
+  g.appendChild(mark);
+
+  $('fNote').innerHTML = isExact
+    ? L.exact(d, exactF, hz)
+    : L.inexact(d, L.dec(exactF.toFixed(2)), L.dec(ms(lo).toFixed(1)), L.dec(ms(hi).toFixed(1)));
+
+  const sl = $('safeList');
+  sl.innerHTML = '';
+  const step = 1000 / hz;
+  for (let n = 1; n <= 30; n++) {
+    const v = n * step;
+    if (Math.abs(v - Math.round(v)) < 1e-6 && Math.round(v) <= 500) {
+      const s = document.createElement('span');
+      s.className = 'sd';
+      s.textContent = Math.round(v) + ' ms';
+      s.title = L.frame(n);
+      sl.appendChild(s);
+    }
+  }
+  if (!sl.children.length) {
+    sl.innerHTML = '<span class="note">' + L.none(hz, L.dec(step.toFixed(3))) + '</span>';
+  }
+}
+D.addEventListener('input', frames);
+HZ.addEventListener('change', frames);
+frames();
+</script>
+</body>
+</html>
